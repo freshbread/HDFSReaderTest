@@ -1,7 +1,10 @@
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.util.logging.Logger;
 
 /**
@@ -10,92 +13,61 @@ import java.util.logging.Logger;
 public class HDFSReaderTest {
 
     private static final Logger logger = Logger.getLogger("HDFSReaderTest");
+    private static final String DEFAULTFS = "fs.defaultFS";
 
     public static void main(String[] args) throws Exception {
 
-        Configuration config = new Configuration();
-        config.set("fs.defaultFS", "hdfs://192.168.1.67:9000/");
-        FileSystem hdfs = FileSystem.get(config);
-        Path srcPath = new Path("/user/jhjeon/hadoop/capacity-scheduler.xml");
-        Path dstPath = new Path("/Users/jhjeon/Documents/");
-        hdfs.copyToLocalFile(srcPath, dstPath);
+        String HDFSDefaultFS = args[0];
+        String fileRootDirectoryPath = args[1];
 
-        //HDFS URI
-//
-//
-//        if (args.length<1) {
-//            /*
-//            logger.severe("1 arg is required :\n\t- hdfsmasteruri (8020 port) ex: hdfs://namenodeserver:8020");
-//            System.err.println("1 arg is required :\n\t- hdfsmasteruri (8020 port) ex: hdfs://namenodeserver:8020");
-//            System.exit(128);
-//            */
-//        }
-//
-//        //String hdfsuri = args[0];
-//        String hdfsuri = "hdfs://192.168.1.39:9000/";
-//
-//        String path = "/user/hadoop/";
-//        String fileName = "test.csv";
-//
-//        // ====== Init HDFS File System Object
-//        Configuration conf = new Configuration();
-//        // Set FileSystem URI
-//        conf.set("fs.defaultFS", hdfsuri);
-//        conf.set("dfs.datanode.address", "192.168.1.39:50010");
-//        // Because of Maven
-//        conf.set("fs.hdfs.impl", org.apache.hadoop.hdfs.DistributedFileSystem.class.getName());
-//        conf.set("fs.file.impl", org.apache.hadoop.fs.LocalFileSystem.class.getName());
-//        // Set HADOOP user
-//        System.setProperty("HADOOP_USER_NAME", "hdfs");
-//        System.setProperty("hadoop.home.dir", "/");
-//        // Get the filesystem - HDFS
-//        FileSystem fs = FileSystem.get(URI.create(hdfsuri), conf);
-//
-//        // ==== Create folder if not exists
-//        Path workingDir = fs.getWorkingDirectory();
-//        Path newFolderPath = new Path(path);
-//        if(!fs.exists(newFolderPath)) {
-//            // Create new Directory
-//            fs.mkdirs(newFolderPath);
-//            logger.info("Path "+path+" created.");
-//        }
-//
-//        // ==== Read file
-//        logger.info("Read file into hdfs");
-//        // Create a path
-//        Path hdfsreadpath = new Path(newFolderPath + "/" + fileName);
-//        // Init input stream
-//        FSDataInputStream inputStream = fs.open(hdfsreadpath);
-//        // Classical input stream usage
-//        String out = IOUtils.toString(inputStream, "UTF-8");
-//        logger.info(out);
-//        inputStream.close();
-//        fs.close();
+        Configuration conf = new Configuration();
+        conf.set(DEFAULTFS, HDFSDefaultFS);
+        Path filePath = new Path(fileRootDirectoryPath);
+        readHDFSFiles(conf, filePath);
+    }
 
-        /*
+    private static void readHDFSFiles(Configuration conf, Path filePath) throws Exception {
+        FileSystem fs = FileSystem.get(conf);
+        FileStatus[] fsStatus = fs.listStatus(filePath);
         try {
-            Configuration conf = new Configuration();
-            conf.set("fs.defaultFS", "hdfs://192.168.1.39:9000/");
-            conf.set("dfs.datanode.address", "192.168.1.39:50010");
-            FileSystem fs = FileSystem.get(conf);
-            FileStatus[] fsStatus = fs.listStatus(new Path("/user/jhjeon/"));
             for (int cnt = 0; cnt < fsStatus.length; cnt++) {
                 FileStatus status = fsStatus[cnt];
                 //System.out.println(status.getPath());
-                Path filePath = status.getPath();
-                BufferedReader br = new BufferedReader(new InputStreamReader(fs.open(filePath)));
-                String line;
-                line = br.readLine();
-                while (line != null) {
-                    //System.out.println(line);
-                    line = br.readLine();
+                if (status.isDirectory()) {
+                    // 여기서 하위 디렉토리의 파일들의 리스트를 다시 가져와서 파일 내용을 읽어야 한다.
+                    readHDFSFiles(conf, status.getPath());
+                } else {
+                    Path path = status.getPath();
+                    BufferedReader br = null;
+                    try {
+                        br = new BufferedReader(new InputStreamReader(fs.open(path)));
+                        /*
+                        String line;
+                        System.out.println(status.getPath().getName());
+                        System.out.println("=====================================================");
+                        line = br.readLine();
+                        while (line != null) {
+                            System.out.println(line);
+                            if (line != null) {
+                                line = br.readLine();
+                            }
+                        }
+                        if (line != null) {
+                            System.out.println(line);
+                        }
+                        System.out.println("=====================================================");
+                        */
+                    } catch (Exception e) {
+
+                    } finally {
+                        br.close();
+                    }
                 }
-                System.out.println(line);
             }
         } catch (Exception e) {
-            System.out.println(e.getMessage());
-            System.out.println(e.getCause());
+
+        } finally {
+            fs.close();
         }
-        */
     }
 }
